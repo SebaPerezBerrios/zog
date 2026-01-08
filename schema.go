@@ -20,7 +20,7 @@ Package z (zog) allows data validation in the form of composable schemas inspire
 		},
 	)
 
-	errors := z.Parse(&book, schema)
+	errors := z.Validate3(&book, schema)
 
 Using Gin https://gin-gonic.com/
 
@@ -31,7 +31,7 @@ Using Gin https://gin-gonic.com/
 				return err
 			}
 
-			errors := z.Parse(&request, testEndpointDto)
+			errors := z.Validate(&request, testEndpointDto)
 	}
 */
 package z
@@ -90,8 +90,8 @@ func (validation Validation) Required() *Validation {
 	return &validation
 }
 
-// Parse takes a struct pointer and a schema, returns the list of validation errors found, an empty list means successful validation
-func Parse[T any](value *T, schema ValidationI) []ValidationErrorItem {
+// Validate takes a struct pointer and a schema, returns the list of validation errors found, an empty list means successful validation
+func Validate[T any](value *T, schema ValidationI) []ValidationErrorItem {
 	if schema == nil {
 		return []ValidationErrorItem{{
 			Error: "nil schema reference",
