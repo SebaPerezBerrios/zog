@@ -1,26 +1,33 @@
 /*
 Package z (zog) allows data validation in the form of composable schemas inspired by zod https://zod.dev/, using reflect https://pkg.go.dev/reflect.
 
-	schema := z.Struct(
-		z.StructSchema{
-			"ID": z.Int().Min(0),
-			"Title": z.String(func(title string) error {
-				if strings.HasPrefix(title, " ") {
-					return errors.New("title should not begin with empty spaces")
-				}
-				return nil
-			}).Min(10).Max(200),
-			"Authors": z.Slice[string]().Min(1),
-			"Appendix": z.Struct(z.StructSchema{
-				"Body": z.String().Min(1),
-				"Annex": z.Struct(z.StructSchema{
-					"AnnexBody": z.String().Max(100),
-				}).Optional(),
-			}),
-		},
-	)
+CustomerSchema := z.Struct[Customer](
 
-	errors := z.Validate3(&book, schema)
+	z.StructSchema{
+		"ID":    z.Int().Min(0),
+		"Email": z.String(),
+		"Phone": z.String().Optional(),
+		"Address": z.Struct(z.StructSchema{
+			"ZipCode":  z.String().Min(6),
+			"City":     z.String().Min(1),
+			"District": z.String().Min(1),
+			"Address":  z.String().Min(1),
+		}, func(address Address) error {
+			// further validate address
+			return nil
+		}),
+		"Account": z.Struct[Account](z.StructSchema{
+			"ProviderID": z.String().Min(1).Max(3),
+			"AccountID":  z.String().Min(1),
+			"Tokens": z.Slice[Token]().Min(1).ForEach(z.Struct[Token](z.StructSchema{
+				"ID": z.String().Min(1),
+			})),
+		}).Optional(),
+	},
+
+)
+
+	errors := z.Validate(&customer, CustomerSchema)
 
 Using Gin https://gin-gonic.com/
 
@@ -100,8 +107,5 @@ func Validate[T any](value *T, schema ValidationI) []ValidationErrorItem {
 		}}
 	}
 
-	if schema.get().kind == reflect.Struct {
-		return validate(value, schema.get().children...)
-	}
-	return validate(value, schema)
+	return validateRoot(value, schema)
 }

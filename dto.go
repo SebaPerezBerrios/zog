@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-func validate[T any](value *T, validations ...ValidationI) []ValidationErrorItem {
+func validateRoot[T any](value *T, validations ...ValidationI) []ValidationErrorItem {
 	context := validationContext{}
 	objectValue := reflect.ValueOf(value)
 	if objectValue.Type().Kind() == reflect.Pointer && objectValue.IsNil() {
@@ -18,35 +18,44 @@ func validate[T any](value *T, validations ...ValidationI) []ValidationErrorItem
 			},
 		)
 	} else {
-		validateRoot(objectValue.Elem(), validations, []string{}, &context)
+		validateAll(objectValue.Elem(), validations, []string{}, &context)
 	}
 	return context.Errors
 }
 
-func validateRoot(objectValue reflect.Value, validations []ValidationI, path []string, context *validationContext) {
+func validateAll(objectValue reflect.Value, validations []ValidationI, path []string, context *validationContext) bool {
+	status := true
 	if len(validations) == 0 {
-		return
+		return status
 	}
 
 	objectKind := objectValue.Type().Kind()
 
 	switch objectKind {
 	case reflect.Struct:
-		validateObject(objectValue, validations, path, context)
+		return validateStruct(objectValue, validations, path, context)
 	case reflect.Slice:
-		validateSlice(objectValue, validations, path, context)
+		return validateSlice(objectValue, validations, path, context)
 	default:
 		for index := range validations {
-			validateItemOrPointer(objectValue, objectKind, validations[index], path, context)
+			status = validateItemOrPointer(objectValue, objectKind, validations[index], path, context)
 		}
 	}
+	return status
 }
 
-func validateObject(objectValue reflect.Value, validations []ValidationI, path []string, context *validationContext) {
+func validateStruct(objectValue reflect.Value, validations []ValidationI, path []string, context *validationContext) bool {
 	objectType := objectValue.Type()
+	status := true
 
 	for index := range validations {
 		fieldName := validations[index].get().key
+
+		// Root validation
+		if fieldName == "" {
+			return validateItemOrPointer(objectValue, objectValue.Type().Kind(), validations[index], path, context)
+		}
+
 		fieldType, found := objectType.FieldByName(fieldName)
 
 		if !found {
@@ -57,47 +66,50 @@ func validateObject(objectValue reflect.Value, validations []ValidationI, path [
 					Kind:  FieldError,
 				},
 			)
+			return false
 		} else {
 			fieldValue := objectValue.FieldByName(fieldName)
 			nextPath := append(path, fieldType.Name)
 
-			validateItemOrPointer(fieldValue, fieldType.Type.Kind(), validations[index], nextPath, context)
+			status = validateItemOrPointer(fieldValue, fieldType.Type.Kind(), validations[index], nextPath, context)
 		}
 
 	}
+	return status
 }
 
-func validateSlice(objectValue reflect.Value, validations []ValidationI, path []string, context *validationContext) {
+func validateSlice(objectValue reflect.Value, validations []ValidationI, path []string, context *validationContext) bool {
+	status := true
+
 	for index := range objectValue.Len() {
 		itemValue := objectValue.Index(index)
-
 		nextPath := append(path, strconv.Itoa(index))
 
 		for validationIndex := range validations {
-			validateItemOrPointer(itemValue, itemValue.Type().Kind(), validations[validationIndex], nextPath, context)
+			status = validateItemOrPointer(itemValue, itemValue.Type().Kind(), validations[validationIndex], nextPath, context)
 		}
-
 	}
+	return status
 }
 
-func validateItemOrPointer(objectValue reflect.Value, kind reflect.Kind, validation ValidationI, path []string, context *validationContext) {
+func validateItemOrPointer(objectValue reflect.Value, kind reflect.Kind, validation ValidationI, path []string, context *validationContext) bool {
 	isPointer := objectValue.Type().Kind() == reflect.Pointer
 
 	if isPointer {
-		validatePointer(objectValue, validation, path, context)
-		return
+		return validatePointer(objectValue, validation, path, context)
 	}
 
-	validateChildren := validateItem(objectValue, kind, validation, path, context)
+	status := validateAll(objectValue, validation.get().children, path, context)
 
-	if validateChildren {
-		validateRoot(objectValue, validation.get().children, path, context)
+	if status {
+		return validateItem(objectValue, kind, validation, path, context)
 	}
+	return status
 }
 
-func validatePointer(objectValue reflect.Value, validation ValidationI, path []string, context *validationContext) {
+func validatePointer(objectValue reflect.Value, validation ValidationI, path []string, context *validationContext) bool {
 	if !objectValue.IsNil() {
-		validateItemOrPointer(objectValue.Elem(), objectValue.Elem().Kind(), validation, path, context)
+		return validateItemOrPointer(objectValue.Elem(), objectValue.Elem().Kind(), validation, path, context)
 	} else {
 		if !validation.get().optional {
 			context.Errors = append(context.Errors,
@@ -108,14 +120,11 @@ func validatePointer(objectValue reflect.Value, validation ValidationI, path []s
 				},
 			)
 		}
+		return false
 	}
 }
 
 func validateItem(objectValue reflect.Value, kind reflect.Kind, validation ValidationI, path []string, context *validationContext) bool {
-	if len(validation.get().validationFns) == 0 {
-		return true
-	}
-
 	value := objectValue.Interface()
 
 	if kind != validation.get().kind {
