@@ -14,7 +14,7 @@ func validateRoot[T any](value *T, validations ...ValidationI) []ValidationError
 			ValidationErrorItem{
 				Error: "nil object found at root\n",
 				Path:  []string{},
-				Kind:  TypeError,
+				Kind:  NilError,
 			},
 		)
 	} else {
@@ -38,7 +38,10 @@ func validateAll(objectValue reflect.Value, validations []ValidationI, path []st
 		return validateSlice(objectValue, validations, path, context)
 	default:
 		for index := range validations {
-			status = validateItemOrPointer(objectValue, objectKind, validations[index], path, context)
+			subStatusOk := validateItemOrPointer(objectValue, objectKind, validations[index], path, context)
+			if !subStatusOk {
+				status = false
+			}
 		}
 	}
 	return status
@@ -71,7 +74,10 @@ func validateStruct(objectValue reflect.Value, validations []ValidationI, path [
 			fieldValue := objectValue.FieldByName(fieldName)
 			nextPath := append(path, fieldType.Name)
 
-			status = validateItemOrPointer(fieldValue, fieldType.Type.Kind(), validations[index], nextPath, context)
+			subStatusOk := validateItemOrPointer(fieldValue, fieldType.Type.Kind(), validations[index], nextPath, context)
+			if !subStatusOk {
+				status = false
+			}
 		}
 
 	}
@@ -86,7 +92,10 @@ func validateSlice(objectValue reflect.Value, validations []ValidationI, path []
 		nextPath := append(path, strconv.Itoa(index))
 
 		for validationIndex := range validations {
-			status = validateItemOrPointer(itemValue, itemValue.Type().Kind(), validations[validationIndex], nextPath, context)
+			subStatusOk := validateItemOrPointer(itemValue, itemValue.Type().Kind(), validations[validationIndex], nextPath, context)
+			if !subStatusOk {
+				status = false
+			}
 		}
 	}
 	return status
