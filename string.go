@@ -52,3 +52,10 @@ func (stringValidation StringValidation) Regex(regex *regexp.Regexp) *StringVali
 	})
 	return &stringValidation
 }
+
+// Default Value
+func (stringValidation StringValidation) Default(defaultString string) *StringValidation {
+	stringValidation.defaultValue = defaultString
+	stringValidation.useDefault = true
+	return &stringValidation
+}

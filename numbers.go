@@ -47,3 +47,10 @@ func (intValidation IntValidation) Max(maxValue int) *IntValidation {
 	})
 	return &intValidation
 }
+
+// Default Value
+func (intValidation IntValidation) Default(defaultInt int) *IntValidation {
+	intValidation.defaultValue = defaultInt
+	intValidation.useDefault = true
+	return &intValidation
+}

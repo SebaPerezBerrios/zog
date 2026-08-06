@@ -10,7 +10,8 @@ func validateRoot[T any](value *T, validations ...ValidationI) []ValidationError
 	context := validationContext{}
 	objectValue := reflect.ValueOf(value)
 	if objectValue.Type().Kind() == reflect.Pointer && objectValue.IsNil() {
-		context.Errors = append(context.Errors,
+		context.Errors = append(
+			context.Errors,
 			ValidationErrorItem{
 				Error: "nil object found at root\n",
 				Path:  []string{},
@@ -62,7 +63,8 @@ func validateStruct(objectValue reflect.Value, validations []ValidationI, path [
 		fieldType, found := objectType.FieldByName(fieldName)
 
 		if !found {
-			context.Errors = append(context.Errors,
+			context.Errors = append(
+				context.Errors,
 				ValidationErrorItem{
 					Error: fmt.Sprintf("validation field %v missing\n", validations[index].get().key),
 					Path:  path,
@@ -121,7 +123,8 @@ func validatePointer(objectValue reflect.Value, validation ValidationI, path []s
 		return validateItemOrPointer(objectValue.Elem(), objectValue.Elem().Kind(), validation, path, context)
 	} else {
 		if !validation.get().optional {
-			context.Errors = append(context.Errors,
+			context.Errors = append(
+				context.Errors,
 				ValidationErrorItem{
 					Error: "expected non nil value\n",
 					Path:  path,
@@ -137,7 +140,8 @@ func validateItem(objectValue reflect.Value, kind reflect.Kind, validation Valid
 	value := objectValue.Interface()
 
 	if kind != validation.get().kind {
-		context.Errors = append(context.Errors,
+		context.Errors = append(
+			context.Errors,
 			ValidationErrorItem{
 				Error: fmt.Sprintf("expected kind %v, found %v\n", validation.get().kind, kind),
 				Path:  path,
@@ -147,10 +151,16 @@ func validateItem(objectValue reflect.Value, kind reflect.Kind, validation Valid
 		return false
 	}
 
+	if validation.get().useDefault && objectValue.IsZero() {
+		objectValue.Set(reflect.ValueOf(validation.get().defaultValue))
+		return true
+	}
+
 	for index := range validation.get().validationFns {
 		err := validation.get().validationFns[index](value)
 		if err != nil {
-			context.Errors = append(context.Errors,
+			context.Errors = append(
+				context.Errors,
 				ValidationErrorItem{
 					Error: fmt.Sprintln(err),
 					Path:  path,

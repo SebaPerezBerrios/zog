@@ -14,6 +14,8 @@ type Validation struct {
 	key           string
 	kind          reflect.Kind
 	optional      bool
+	defaultValue  any
+	useDefault    bool
 	validationFns [](func(any) error)
 	children      []ValidationI
 }
