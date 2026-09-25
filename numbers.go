@@ -28,7 +28,7 @@ func Float(fns ...(func(float64) error)) *FloatValidation {
 func (intValidation IntValidation) Min(minValue int) *IntValidation {
 	intValidation.validationFns = append(intValidation.validationFns, func(val any) error {
 		valI := val.(int)
-		if (valI) <= minValue {
+		if valI < minValue {
 			return fmt.Errorf("value %d less than %d", valI, minValue)
 		}
 		return nil
@@ -40,7 +40,7 @@ func (intValidation IntValidation) Min(minValue int) *IntValidation {
 func (intValidation IntValidation) Max(maxValue int) *IntValidation {
 	intValidation.validationFns = append(intValidation.validationFns, func(val any) error {
 		valI := val.(int)
-		if (valI) <= maxValue {
+		if valI > maxValue {
 			return fmt.Errorf("value %d greater than %d", valI, maxValue)
 		}
 		return nil

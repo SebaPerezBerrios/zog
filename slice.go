@@ -24,7 +24,7 @@ func (sliceValidation SliceValidation[T]) ForEach(subSchemas ...ValidationI) *Sl
 func (sliceValidation SliceValidation[T]) Min(minLen int) *SliceValidation[T] {
 	sliceValidation.validationFns = append(sliceValidation.validationFns, func(val any) error {
 		valS := val.([]T)
-		if len(valS) <= minLen {
+		if len(valS) < minLen {
 			return fmt.Errorf("slice length %d less than %d", len(valS), minLen)
 		}
 		return nil
@@ -35,7 +35,7 @@ func (sliceValidation SliceValidation[T]) Min(minLen int) *SliceValidation[T] {
 func (sliceValidation SliceValidation[T]) Max(maxLen int) *SliceValidation[T] {
 	sliceValidation.validationFns = append(sliceValidation.validationFns, func(val any) error {
 		valS := val.([]T)
-		if len(valS) >= maxLen {
+		if len(valS) > maxLen {
 			return fmt.Errorf("slice length %d greater than %d", len(valS), maxLen)
 		}
 		return nil
